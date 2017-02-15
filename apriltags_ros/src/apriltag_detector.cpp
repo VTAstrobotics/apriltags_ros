@@ -6,14 +6,22 @@
 #include <geometry_msgs/PoseArray.h>
 #include <apriltags_ros/AprilTagDetection.h>
 #include <apriltags_ros/AprilTagDetectionArray.h>
+#include <apriltags_ros/MetaPose.h>
 #include <AprilTags/Tag16h5.h>
 #include <AprilTags/Tag25h7.h>
 #include <AprilTags/Tag25h9.h>
 #include <AprilTags/Tag36h9.h>
 #include <AprilTags/Tag36h11.h>
 #include <XmlRpcException.h>
+#include <iostream>
+#include <fstream>  
+
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 namespace apriltags_ros{
+
+ofstream data("/home/astrobotics/Desktop/data.txt");
 
 AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): it_(nh){
   XmlRpc::XmlRpcValue april_tag_descriptions;
@@ -63,6 +71,7 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): i
   image_pub_ = it_.advertise("tag_detections_image", 1);
   detections_pub_ = nh.advertise<AprilTagDetectionArray>("tag_detections", 1);
   pose_pub_ = nh.advertise<geometry_msgs::PoseArray>("tag_detections_pose", 1);
+  cam_pose_=nh.advertise<MetaPose>("cam_pose",1);
 }
 AprilTagDetector::~AprilTagDetector(){
   image_sub_.shutdown();
@@ -77,6 +86,11 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
     ROS_ERROR("cv_bridge exception: %s", e.what());
     return;
   }
+
+
+    data.open("/home/astrobotics/Desktop/data.txt", fstream::app);
+
+
   cv::Mat gray;
   cv::cvtColor(cv_ptr->image, gray, CV_BGR2GRAY);
   std::vector<AprilTags::TagDetection>	detections = tag_detector_->extractTags(gray);
@@ -102,14 +116,18 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
     py = cam_info->K[5];
   }
 
+
+
   if(!sensor_frame_id_.empty())
     cv_ptr->header.frame_id = sensor_frame_id_;
 
   AprilTagDetectionArray tag_detection_array;
   geometry_msgs::PoseArray tag_pose_array;
   tag_pose_array.header = cv_ptr->header;
+  geometry_msgs::PoseStamped camera_position_in_tag_frame;
 
   BOOST_FOREACH(AprilTags::TagDetection detection, detections){
+
     std::map<int, AprilTagDescription>::const_iterator description_itr = descriptions_.find(detection.id);
     if(description_itr == descriptions_.end()){
       ROS_WARN_THROTTLE(10.0, "Found tag: %d, but no description was found for it", detection.id);
@@ -119,19 +137,66 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
     double tag_size = description.size();
 
     detection.draw(cv_ptr->image);
-    Eigen::Matrix4d transform = detection.getRelativeTransform(tag_size, fx, fy, px, py);
+
+    std::pair<float,float> temp;
+    temp.first=0;
+    temp.second=0;
+    std::pair<float,float> * centerxy = &temp;
+
+    Eigen::Matrix4d transform = detection.getRelativeTransform(tag_size, fx, fy, px, py, centerxy);
     Eigen::Matrix3d rot = transform.block(0, 0, 3, 3);
     Eigen::Quaternion<double> rot_quaternion = Eigen::Quaternion<double>(rot);
 
     geometry_msgs::PoseStamped tag_pose;
+    MetaPose Mpose;
+    
     tag_pose.pose.position.x = transform(0, 3);
     tag_pose.pose.position.y = transform(1, 3);
     tag_pose.pose.position.z = transform(2, 3);
+
+    data << "<" << centerxy->first << "," << centerxy->second << ">\n";
+    
+    data.close();
+
     tag_pose.pose.orientation.x = rot_quaternion.x();
     tag_pose.pose.orientation.y = rot_quaternion.y();
     tag_pose.pose.orientation.z = rot_quaternion.z();
     tag_pose.pose.orientation.w = rot_quaternion.w();
     tag_pose.header = cv_ptr->header;
+
+    float xsqr = tag_pose.pose.orientation.x*tag_pose.pose.orientation.x;
+
+    //roll(around the y)
+    float t0 = +2.0f * (tag_pose.pose.orientation.w * tag_pose.pose.orientation.z + tag_pose.pose.orientation.x * tag_pose.pose.orientation.y);
+    float t1 = +1.0f - 2.0f * (tag_pose.pose.orientation.z * tag_pose.pose.orientation.z + xsqr);
+    Mpose.pose.orientation.y = atan2(t0,t1);
+
+    //pitch(around the x)
+    float t2 = +2.0f * (tag_pose.pose.orientation.w * tag_pose.pose.orientation.x - tag_pose.pose.orientation.y * tag_pose.pose.orientation.z);
+    t2 = t2 > 1.0f ? 1.0f : t2;
+    t2 = t2 < -1.0f ? -1.0f : t2;
+    Mpose.pose.orientation.x = asin(t2);
+
+    //yaw (around the z)
+    float t3 = +2.0f * (tag_pose.pose.orientation.w * tag_pose.pose.orientation.y + tag_pose.pose.orientation.z * tag_pose.pose.orientation.x);
+    float t4 = +1.0f - 2.0f * (xsqr + tag_pose.pose.orientation.y * tag_pose.pose.orientation.y);
+    Mpose.pose.orientation.z = atan2(t3,t4);
+    if(Mpose.pose.orientation.z < 0){
+      Mpose.pose.orientation.z += (2*M_PI);
+    }
+
+    Mpose.pose.orientation.w = 1.00;
+
+    Mpose.pose.position.y = sqrt(tag_pose.pose.position.x*tag_pose.pose.position.x + tag_pose.pose.position.z*tag_pose.pose.position.z)
+      *cos(Mpose.pose.orientation.y - M_PI - atan(tag_pose.pose.position.x/tag_pose.pose.position.z));
+    Mpose.pose.position.x = sqrt(tag_pose.pose.position.x*tag_pose.pose.position.x + tag_pose.pose.position.z*tag_pose.pose.position.z)
+      *sin(Mpose.pose.orientation.y - M_PI - atan(tag_pose.pose.position.x/tag_pose.pose.position.z));
+    Mpose.pose.position.z = tag_pose.pose.position.y;
+
+    Mpose.px=centerxy->first;
+    Mpose.py=centerxy->second;
+
+	  cam_pose_.publish(Mpose);
 
     AprilTagDetection tag_detection;
     tag_detection.pose = tag_pose;

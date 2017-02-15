@@ -24,6 +24,7 @@ add_message_files(
   FILES
   AprilTagDetection.msg
   AprilTagDetectionArray.msg
+  MetaPose.msg
 )
 
 generate_messages(

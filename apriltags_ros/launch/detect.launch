@@ -134,7 +134,7 @@
 
       <!-- Describe the tags -->
       <rosparam param="tag_descriptions">[
-        {id: 97, size: 0.163513, frame_id: i_did_it},
+        {id: 0, size: 0.163513, frame_id: i_did_it},
         {id: 1, size: 0.163513, frame_id: a_frame},
         {id: 2, size: 0.163513, frame_id: tag_2},
         {id: 3, size: 0.163513},
@@ -168,9 +168,11 @@
     respawn = "true"
   />
 
-  <node pkg="rosserial_python" type="serial_node.py" name="rosserial" output="screen">
-    <param name="port" value="/dev/ttyACM0" />
-    <param name="baud" value="57600" />
-  </node>
+  <node
+    pkg="cam_data_filter"
+    type="cam_data_filter_node"
+    name="cam_data_filter"
+    respawn="true"
+  />
   
 </launch>

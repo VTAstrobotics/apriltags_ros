@@ -174,5 +174,12 @@
     name="cam_data_filter"
     respawn="true"
   />
+
+  <node
+    pkg="autonomous_control"
+    type="autonomous_control_node"
+    name="autonomous_control"
+    respawn="true"
+  />
   
 </launch>

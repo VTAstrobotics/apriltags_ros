@@ -180,6 +180,7 @@
     type="autonomous_control_node"
     name="autonomous_control"
     respawn="true"
+    output="screen"
   />
   
 </launch>

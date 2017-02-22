@@ -186,6 +186,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
     }
 
     Mpose.pose.orientation.w = 1.00;
+    Mpose.detected = true;
 
     Mpose.pose.position.y = sqrt(tag_pose.pose.position.x*tag_pose.pose.position.x + tag_pose.pose.position.z*tag_pose.pose.position.z)
       *cos(Mpose.pose.orientation.y - M_PI - atan(tag_pose.pose.position.x/tag_pose.pose.position.z));

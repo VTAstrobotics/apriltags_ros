@@ -188,4 +188,11 @@
     <param name="baud" value="57600" />
   </node>
   
+  <node 
+    pkg="rqt_console"
+    type="rqt_console"
+    name="rqt_console"
+    >
+    </node>          
+
 </launch>

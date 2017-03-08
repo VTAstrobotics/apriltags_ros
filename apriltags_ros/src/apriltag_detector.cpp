@@ -189,9 +189,9 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
     Mpose.detected = true;
 
     Mpose.pose.position.y = sqrt(tag_pose.pose.position.x*tag_pose.pose.position.x + tag_pose.pose.position.z*tag_pose.pose.position.z)
-      *cos(Mpose.pose.orientation.y - M_PI - atan(tag_pose.pose.position.x/tag_pose.pose.position.z));
+      *cos(Mpose.pose.orientation.z - M_PI - atan(tag_pose.pose.position.x/tag_pose.pose.position.z));
     Mpose.pose.position.x = sqrt(tag_pose.pose.position.x*tag_pose.pose.position.x + tag_pose.pose.position.z*tag_pose.pose.position.z)
-      *sin(Mpose.pose.orientation.y - M_PI - atan(tag_pose.pose.position.x/tag_pose.pose.position.z));
+      *sin(Mpose.pose.orientation.z - M_PI - atan(tag_pose.pose.position.x/tag_pose.pose.position.z));
     Mpose.pose.position.z = tag_pose.pose.position.y;
 
     Mpose.px=centerxy->first;

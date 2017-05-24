@@ -199,6 +199,15 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
 
 	  cam_pose_.publish(Mpose);
 
+    tag_pose.pose.position.x = Mpose.pose.position.x;
+    tag_pose.pose.position.y = Mpose.pose.position.y;
+    tag_pose.pose.position.z = Mpose.pose.position.z;
+
+    tag_pose.pose.orientation.x = Mpose.pose.orientation.x;
+    tag_pose.pose.orientation.y = Mpose.pose.orientation.y;
+    tag_pose.pose.orientation.z = Mpose.pose.orientation.z;
+    tag_pose.pose.orientation.w = Mpose.pose.orientation.w;
+
     AprilTagDetection tag_detection;
     tag_detection.pose = tag_pose;
     tag_detection.id = detection.id;
